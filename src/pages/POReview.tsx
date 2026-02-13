@@ -1,0 +1,842 @@
+import { useState, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Row,
+  Col,
+  Button,
+  Tag,
+  Form,
+  Input,
+  Select,
+  DatePicker,
+  InputNumber,
+  Switch,
+  Typography,
+  Divider,
+  Space,
+  Modal,
+  message,
+} from 'antd';
+import { ArrowLeftOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import {
+  purchaseOrders,
+  supplierOrganizations,
+  legalEntities,
+  paymentTerms,
+} from '../data/mockData';
+import type { PurchaseOrder } from '../data/mockData';
+
+type POStatus = PurchaseOrder['status'];
+
+const { Title, Text } = Typography;
+
+const currencyOptions = [
+  { label: 'USD', value: 'USD' },
+  { label: 'EUR', value: 'EUR' },
+  { label: 'GBP', value: 'GBP' },
+];
+
+const statusColorMap: Record<POStatus, string> = {
+  draft: 'orange',
+  cleared_by_commercial: 'blue',
+  submitted: 'green',
+  confirmed: 'green',
+  partially_confirmed: 'cyan',
+};
+
+const statusLabelMap: Record<POStatus, string> = {
+  draft: 'Draft',
+  cleared_by_commercial: 'Cleared by Commercial',
+  submitted: 'Submitted',
+  confirmed: 'Confirmed',
+  partially_confirmed: 'Partially Confirmed',
+};
+
+function formatCurrency(amount: number, currency: string): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+  }).format(amount);
+}
+
+export default function POReview() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  // Find the PO
+  const po = purchaseOrders.find((p) => p.id === id);
+
+  // Find the supplier org for this PO
+  const supplierOrg = useMemo(() => {
+    if (!po) return null;
+    return supplierOrganizations.find((s: { name: string }) => s.name === po.supplier) || null;
+  }, [po]);
+
+  // State
+  const [status, setStatus] = useState<POStatus>(po?.status || 'draft');
+  const [vendorContactEmail, setVendorContactEmail] = useState<string>(
+    supplierOrg?.contacts[0]?.email || ''
+  );
+  const [billToEntityId, setBillToEntityId] = useState<string>('le-2');
+  const [shipToEntityId, setShipToEntityId] = useState<string>('le-2');
+  const [shipToContact, setShipToContact] = useState<string>('finance@axmed.com');
+  const [terms, setTerms] = useState<string>('Net 30 on delivery');
+  const [poDate, setPoDate] = useState<dayjs.Dayjs>(
+    po?.createdAt ? dayjs(po.createdAt) : dayjs()
+  );
+  const [currency, setCurrency] = useState<string>(po?.currency || 'USD');
+  const [displayAsPacks, setDisplayAsPacks] = useState<boolean>(false);
+  const [vatPercent, setVatPercent] = useState<number>(0);
+
+  // Derived values
+  const selectedContact = useMemo(() => {
+    if (!supplierOrg) return null;
+    return supplierOrg.contacts.find((c: { email: string }) => c.email === vendorContactEmail) || null;
+  }, [supplierOrg, vendorContactEmail]);
+
+  const billToEntity = useMemo(() => {
+    return legalEntities.find((e) => e.id === billToEntityId) || null;
+  }, [billToEntityId]);
+
+  const shipToEntity = useMemo(() => {
+    return legalEntities.find((e) => e.id === shipToEntityId) || null;
+  }, [shipToEntityId]);
+
+  const subtotal = useMemo(() => {
+    if (!po) return 0;
+    return po.lineItems.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
+  }, [po]);
+
+  const vatAmount = useMemo(() => {
+    return subtotal * (vatPercent / 100);
+  }, [subtotal, vatPercent]);
+
+  const grandTotal = useMemo(() => {
+    return subtotal + vatAmount;
+  }, [subtotal, vatAmount]);
+
+  // Not found
+  if (!po) {
+    return (
+      <div style={{ padding: 48, textAlign: 'center' }}>
+        <Title level={3}>PO not found</Title>
+        <Text type="secondary">
+          The purchase order you are looking for does not exist.
+        </Text>
+        <br />
+        <br />
+        <Button type="primary" onClick={() => navigate('/finance/purchase-orders')}>
+          Back to Purchase Orders
+        </Button>
+      </div>
+    );
+  }
+
+  // Action handlers
+  const handleSaveDraft = () => {
+    message.success('Draft saved.');
+  };
+
+  const handleMarkCompleted = () => {
+    Modal.confirm({
+      title: 'Mark as Completed',
+      content:
+        'Mark this PO as completed? It will be sent to Finance for review.',
+      okText: 'Yes, Mark as Completed',
+      cancelText: 'Cancel',
+      onOk: () => {
+        setStatus('cleared_by_commercial');
+        message.success(
+          'PO marked as completed and sent to Finance for review.'
+        );
+      },
+    });
+  };
+
+  const handleSendToSupplier = () => {
+    Modal.confirm({
+      title: 'Send to Supplier',
+      content:
+        'Send this PO to the supplier? An award email will be sent.',
+      okText: 'Yes, Send to Supplier',
+      cancelText: 'Cancel',
+      onOk: () => {
+        setStatus('submitted');
+        message.success('PO has been sent to the supplier.');
+      },
+    });
+  };
+
+  const handleSendBackToDraft = () => {
+    Modal.confirm({
+      title: 'Send Back to Draft',
+      content:
+        'Send this PO back to draft? The commercial team will need to review it again.',
+      okText: 'Yes, Send Back',
+      cancelText: 'Cancel',
+      onOk: () => {
+        setStatus('draft');
+        message.success('PO has been reverted to draft status.');
+      },
+    });
+  };
+
+  return (
+    <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+      {/* Top Bar */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <Space align="center" size={16}>
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/finance/purchase-orders')}
+            style={{ fontWeight: 500 }}
+          >
+            Back to Purchase Orders
+          </Button>
+          <Divider type="vertical" style={{ height: 24 }} />
+          <Title level={4} style={{ margin: 0 }}>
+            {po.poNumber}
+          </Title>
+          <Tag color={statusColorMap[status]}>{statusLabelMap[status]}</Tag>
+        </Space>
+
+        <Space wrap>
+          <Button onClick={handleSaveDraft}>Save as Draft</Button>
+          {status === 'draft' && (
+            <Button type="primary" onClick={handleMarkCompleted}>
+              Mark as Completed
+            </Button>
+          )}
+          {status === 'cleared_by_commercial' && (
+            <>
+              <Button onClick={handleSendBackToDraft}>Send Back to Draft</Button>
+              <Button
+                type="primary"
+                style={{ backgroundColor: '#392AB0', borderColor: '#392AB0' }}
+                onClick={handleSendToSupplier}
+              >
+                Send to Supplier
+              </Button>
+            </>
+          )}
+        </Space>
+      </div>
+
+      {/* Two Column Layout */}
+      <Row gutter={24}>
+        {/* Left Column — Form */}
+        <Col xs={24} lg={10}>
+          <div
+            style={{
+              background: '#fff',
+              padding: 24,
+              borderRadius: 8,
+              marginBottom: 24,
+            }}
+          >
+            <Form layout="vertical" size="middle">
+              {/* Section 1: Vendor Details */}
+              <Title level={5} style={{ marginBottom: 16 }}>
+                Vendor Details
+              </Title>
+              <Form.Item label="Supplier Name">
+                <Input value={po.supplier} readOnly disabled />
+              </Form.Item>
+              <Form.Item label="Supplier Address">
+                <Input
+                  value={supplierOrg?.address || 'N/A'}
+                  readOnly
+                  disabled
+                />
+              </Form.Item>
+              <Form.Item label="Vendor Contact">
+                <Select
+                  value={vendorContactEmail || undefined}
+                  placeholder="Select a contact"
+                  onChange={(val: string) => setVendorContactEmail(val)}
+                  options={
+                    supplierOrg?.contacts.map((c: { name: string; email: string; role: string }) => ({
+                      label: `${c.name} (${c.role})`,
+                      value: c.email,
+                    })) || []
+                  }
+                />
+              </Form.Item>
+              <Form.Item label="Contact Email">
+                <Input
+                  value={selectedContact?.email || ''}
+                  readOnly
+                  disabled
+                />
+              </Form.Item>
+
+              <Divider />
+
+              {/* Section 2: Bill-to */}
+              <Title level={5} style={{ marginBottom: 16 }}>
+                Bill-to
+              </Title>
+              <Form.Item label="Legal Entity">
+                <Select
+                  value={billToEntityId}
+                  onChange={(val) => setBillToEntityId(val)}
+                  options={legalEntities.map((e) => ({
+                    label: e.name,
+                    value: e.id,
+                  }))}
+                />
+              </Form.Item>
+              <Form.Item label="Bill-to Address">
+                <Input
+                  value={billToEntity?.address || ''}
+                  readOnly
+                  disabled
+                />
+              </Form.Item>
+
+              <Divider />
+
+              {/* Section 3: Ship-to */}
+              <Title level={5} style={{ marginBottom: 16 }}>
+                Ship-to
+              </Title>
+              <Form.Item label="Entity Name">
+                <Select
+                  value={shipToEntityId}
+                  onChange={(val) => setShipToEntityId(val)}
+                  options={legalEntities.map((e) => ({
+                    label: e.name,
+                    value: e.id,
+                  }))}
+                />
+              </Form.Item>
+              <Form.Item label="Address">
+                <Input
+                  value={shipToEntity?.address || ''}
+                  readOnly
+                  disabled
+                />
+              </Form.Item>
+              <Form.Item label="Contact">
+                <Input
+                  value={shipToContact}
+                  onChange={(e) => setShipToContact(e.target.value)}
+                />
+              </Form.Item>
+
+              <Divider />
+
+              {/* Section 4: PO Details */}
+              <Title level={5} style={{ marginBottom: 16 }}>
+                PO Details
+              </Title>
+              <Form.Item label="PO Number">
+                <Input value={po.poNumber} readOnly disabled />
+              </Form.Item>
+              <Form.Item label="Payment Terms">
+                <Select
+                  value={terms}
+                  onChange={(val) => setTerms(val)}
+                  options={paymentTerms.map((t) => ({
+                    label: t,
+                    value: t,
+                  }))}
+                />
+              </Form.Item>
+              <Form.Item label="Reference Number">
+                <Input
+                  value={po.referenceNumber}
+                  readOnly
+                  disabled
+                />
+              </Form.Item>
+              <Form.Item label="Date">
+                <DatePicker
+                  value={poDate}
+                  onChange={(date) => date && setPoDate(date)}
+                  style={{ width: '100%' }}
+                  format="DD MMM YYYY"
+                />
+              </Form.Item>
+              <Form.Item label="Currency">
+                <Select
+                  value={currency}
+                  onChange={(val) => setCurrency(val)}
+                  options={currencyOptions}
+                />
+              </Form.Item>
+              <Form.Item label="Incoterms">
+                <Input value="CIF" readOnly disabled />
+              </Form.Item>
+
+              <Divider />
+
+              {/* Section 5: Display Options */}
+              <Title level={5} style={{ marginBottom: 16 }}>
+                Display Options
+              </Title>
+              <Form.Item label="Quantity Display">
+                <Space>
+                  <Text type={!displayAsPacks ? undefined : 'secondary'}>
+                    Units
+                  </Text>
+                  <Switch
+                    checked={displayAsPacks}
+                    onChange={(checked) => setDisplayAsPacks(checked)}
+                  />
+                  <Text type={displayAsPacks ? undefined : 'secondary'}>
+                    Packs
+                  </Text>
+                </Space>
+              </Form.Item>
+
+              <Divider />
+
+              {/* Section 6: VAT */}
+              <Title level={5} style={{ marginBottom: 16 }}>
+                VAT
+              </Title>
+              <Text
+                type="secondary"
+                style={{ display: 'block', marginBottom: 12 }}
+              >
+                Set by finance team
+              </Text>
+              <Form.Item label="VAT Percentage">
+                <InputNumber
+                  value={vatPercent}
+                  onChange={(val) => setVatPercent(val || 0)}
+                  min={0}
+                  max={100}
+                  addonAfter="%"
+                  style={{ width: 160 }}
+                />
+              </Form.Item>
+            </Form>
+          </div>
+        </Col>
+
+        {/* Right Column — Document Preview */}
+        <Col xs={24} lg={14}>
+          <div
+            style={{
+              maxHeight: 'calc(100vh - 120px)',
+              overflowY: 'auto',
+              position: 'sticky',
+              top: 24,
+            }}
+          >
+            <PODocumentPreview
+              po={po}
+              status={status}
+              supplierName={po.supplier}
+              supplierAddress={supplierOrg?.address || 'N/A'}
+              vendorContact={selectedContact?.name || ''}
+              vendorEmail={selectedContact?.email || ''}
+              billToEntity={billToEntity?.name || ''}
+              billToAddress={billToEntity?.address || ''}
+              shipToEntity={shipToEntity?.name || ''}
+              shipToAddress={shipToEntity?.address || ''}
+              shipToContact={shipToContact}
+              poNumber={po.poNumber}
+              paymentTerms={terms}
+              referenceNumber={po.referenceNumber}
+              date={poDate.format('DD MMM YYYY')}
+              currency={currency}
+              incoterms="CIF"
+              displayAsPacks={displayAsPacks}
+              vatPercent={vatPercent}
+              subtotal={subtotal}
+              vatAmount={vatAmount}
+              grandTotal={grandTotal}
+            />
+          </div>
+        </Col>
+      </Row>
+    </div>
+  );
+}
+
+// ============ PO Document Preview Component ============
+
+interface PODocumentPreviewProps {
+  po: PurchaseOrder;
+  status: POStatus;
+  supplierName: string;
+  supplierAddress: string;
+  vendorContact: string;
+  vendorEmail: string;
+  billToEntity: string;
+  billToAddress: string;
+  shipToEntity: string;
+  shipToAddress: string;
+  shipToContact: string;
+  poNumber: string;
+  paymentTerms: string;
+  referenceNumber: string;
+  date: string;
+  currency: string;
+  incoterms: string;
+  displayAsPacks: boolean;
+  vatPercent: number;
+  subtotal: number;
+  vatAmount: number;
+  grandTotal: number;
+}
+
+function PODocumentPreview({
+  po,
+  supplierName,
+  supplierAddress,
+  vendorContact,
+  vendorEmail,
+  billToEntity,
+  billToAddress,
+  shipToEntity,
+  shipToAddress,
+  shipToContact,
+  poNumber,
+  paymentTerms: terms,
+  referenceNumber,
+  date,
+  currency,
+  incoterms,
+  displayAsPacks,
+  vatPercent,
+  subtotal,
+  vatAmount,
+  grandTotal,
+}: PODocumentPreviewProps) {
+  const quantityLabel = displayAsPacks ? '(packs)' : '(units)';
+
+  return (
+    <div
+      style={{
+        background: '#fff',
+        border: '1px solid #e8e8e8',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+        borderRadius: 4,
+        maxWidth: 700,
+        margin: '0 auto',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Purple strip */}
+      <div style={{ height: 6, background: '#392AB0' }} />
+
+      {/* Document body */}
+      <div style={{ padding: 40 }}>
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: 32,
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                color: '#392AB0',
+                margin: 0,
+                letterSpacing: 1,
+              }}
+            >
+              PURCHASE ORDER
+            </h1>
+          </div>
+          <img
+            src="/axmed-logo.png"
+            alt="Axmed"
+            style={{ height: 36 }}
+          />
+        </div>
+
+        {/* Vendor & Bill-to */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 32,
+            marginBottom: 24,
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <div style={sectionHeaderStyle}>Vendor</div>
+            <div style={docFieldStyle}>
+              <strong>{supplierName}</strong>
+            </div>
+            <div style={docFieldStyle}>{supplierAddress}</div>
+            {vendorContact && (
+              <div style={docFieldStyle}>Contact: {vendorContact}</div>
+            )}
+            {vendorEmail && (
+              <div style={docFieldStyle}>Email: {vendorEmail}</div>
+            )}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={sectionHeaderStyle}>Bill To</div>
+            <div style={docFieldStyle}>
+              <strong>{billToEntity}</strong>
+            </div>
+            <div style={docFieldStyle}>{billToAddress}</div>
+          </div>
+        </div>
+
+        {/* Ship-to & PO Details */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 32,
+            marginBottom: 32,
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <div style={sectionHeaderStyle}>Ship To</div>
+            <div style={docFieldStyle}>
+              <strong>{shipToEntity}</strong>
+            </div>
+            <div style={docFieldStyle}>{shipToAddress}</div>
+            <div style={docFieldStyle}>Contact: {shipToContact}</div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={sectionHeaderStyle}>PO Details</div>
+            <table style={{ fontSize: 13, lineHeight: 1.8 }}>
+              <tbody>
+                <tr>
+                  <td style={detailLabelStyle}>PO #:</td>
+                  <td>{poNumber}</td>
+                </tr>
+                <tr>
+                  <td style={detailLabelStyle}>Terms:</td>
+                  <td>{terms}</td>
+                </tr>
+                <tr>
+                  <td style={detailLabelStyle}>Reference:</td>
+                  <td>{referenceNumber}</td>
+                </tr>
+                <tr>
+                  <td style={detailLabelStyle}>Date:</td>
+                  <td>{date}</td>
+                </tr>
+                <tr>
+                  <td style={detailLabelStyle}>Currency:</td>
+                  <td>{currency}</td>
+                </tr>
+                <tr>
+                  <td style={detailLabelStyle}>Incoterms:</td>
+                  <td>{incoterms}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Order Items Table */}
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: 13,
+            marginBottom: 24,
+          }}
+        >
+          <thead>
+            <tr style={{ background: '#f8f8fc' }}>
+              <th style={thStyle}>Product</th>
+              <th style={thStyle}>Description</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>
+                Quantity {quantityLabel}
+              </th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Rate</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {po.lineItems.map((item) => (
+              <tr key={item.id}>
+                <td style={tdStyle}>{item.product}</td>
+                <td style={tdStyle}>
+                  {item.description}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right' }}>
+                  {item.quantity.toLocaleString()}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right' }}>
+                  {formatCurrency(item.unitPrice, currency)}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right' }}>
+                  {formatCurrency(item.amount, currency)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td
+                colSpan={4}
+                style={{
+                  ...tdStyle,
+                  textAlign: 'right',
+                  fontWeight: 500,
+                }}
+              >
+                Subtotal
+              </td>
+              <td
+                style={{
+                  ...tdStyle,
+                  textAlign: 'right',
+                  fontWeight: 500,
+                }}
+              >
+                {formatCurrency(subtotal, currency)}
+              </td>
+            </tr>
+            <tr>
+              <td
+                colSpan={4}
+                style={{
+                  ...tdStyle,
+                  textAlign: 'right',
+                  color: '#888',
+                }}
+              >
+                VAT ({vatPercent}%)
+              </td>
+              <td
+                style={{
+                  ...tdStyle,
+                  textAlign: 'right',
+                  color: '#888',
+                }}
+              >
+                {formatCurrency(vatAmount, currency)}
+              </td>
+            </tr>
+            <tr>
+              <td
+                colSpan={4}
+                style={{
+                  ...tdStyle,
+                  textAlign: 'right',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  borderTop: '2px solid #392AB0',
+                }}
+              >
+                Total
+              </td>
+              <td
+                style={{
+                  ...tdStyle,
+                  textAlign: 'right',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  borderTop: '2px solid #392AB0',
+                }}
+              >
+                {formatCurrency(grandTotal, currency)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+
+        {/* Legal Notes */}
+        <div style={{ marginTop: 32 }}>
+          <div
+            style={{
+              fontSize: 11,
+              color: '#888',
+              lineHeight: 1.6,
+              marginBottom: 16,
+            }}
+          >
+            This purchase order is governed by Axmed's standard supply terms
+            and conditions. By accepting this purchase order, the supplier
+            agrees to be bound by these terms and conditions, which are
+            available upon request. This PO is subject to the laws of the
+            jurisdiction of the buying entity specified above.
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              color: '#888',
+              lineHeight: 1.6,
+            }}
+          >
+            By accepting this Purchase Order, the Supplier confirms the
+            following: (1) Acceptance of this PO constitutes a binding
+            agreement to supply the listed products at the stated prices and
+            terms. (2) All invoices must reference the PO number and be sent
+            to the billing address above. (3) Products must have a minimum
+            remaining shelf life of 75% at the time of delivery unless
+            otherwise agreed in writing. (4) All products must be packaged
+            in accordance with WHO guidelines and applicable regulatory
+            requirements for the destination country. (5) The Supplier shall
+            provide Certificates of Analysis, Certificates of
+            Pharmaceutical Product (CoPP), and any other documentation
+            required for importation prior to or at the time of shipment.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ Shared Styles ============
+
+const sectionHeaderStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  color: '#392AB0',
+  letterSpacing: 0.8,
+  marginBottom: 6,
+  borderBottom: '1px solid #e8e8e8',
+  paddingBottom: 4,
+};
+
+const docFieldStyle: React.CSSProperties = {
+  fontSize: 13,
+  lineHeight: 1.7,
+  color: '#333',
+};
+
+const detailLabelStyle: React.CSSProperties = {
+  color: '#888',
+  paddingRight: 12,
+  fontWeight: 500,
+  whiteSpace: 'nowrap',
+};
+
+const thStyle: React.CSSProperties = {
+  padding: '10px 12px',
+  borderBottom: '2px solid #392AB0',
+  textAlign: 'left',
+  fontWeight: 600,
+  color: '#333',
+  fontSize: 12,
+  textTransform: 'uppercase',
+  letterSpacing: 0.5,
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: '10px 12px',
+  borderBottom: '1px solid #f0f0f0',
+  verticalAlign: 'top',
+};
