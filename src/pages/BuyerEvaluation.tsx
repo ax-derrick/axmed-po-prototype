@@ -15,6 +15,7 @@ import {
   Space,
 } from 'antd';
 import { SearchOutlined, FileTextOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import type { TableRowSelection, ColumnsType } from 'antd/es/table/interface';
 import {
   orderItems,
@@ -41,6 +42,7 @@ const formatCurrency = (value: number, currency = 'USD'): string => {
 };
 
 function BuyerEvaluation() {
+  const navigate = useNavigate();
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -206,6 +208,9 @@ function BuyerEvaluation() {
     );
     setDrawerOpen(false);
     setSelectedRowKeys([]);
+    setTimeout(() => {
+      navigate('/finance/purchase-orders');
+    }, 600);
   };
 
   return (

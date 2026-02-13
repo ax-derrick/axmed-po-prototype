@@ -235,7 +235,7 @@ export default function POReview() {
       </div>
 
       {/* Two Column Layout */}
-      <Row gutter={24}>
+      <Row gutter={24} align="stretch">
         {/* Left Column — Form */}
         <Col xs={24} lg={10}>
           <div
@@ -247,21 +247,11 @@ export default function POReview() {
             }}
           >
             <Form layout="vertical" size="middle">
-              {/* Section 1: Vendor Details */}
+              {/* Section 1: Vendor Contact */}
               <Title level={5} style={{ marginBottom: 16 }}>
-                Vendor Details
+                Vendor Contact
               </Title>
-              <Form.Item label="Supplier Name">
-                <Input value={po.supplier} readOnly disabled />
-              </Form.Item>
-              <Form.Item label="Supplier Address">
-                <Input
-                  value={supplierOrg?.address || 'N/A'}
-                  readOnly
-                  disabled
-                />
-              </Form.Item>
-              <Form.Item label="Vendor Contact">
+              <Form.Item label="Contact Person">
                 <Select
                   value={vendorContactEmail || undefined}
                   placeholder="Select a contact"
@@ -272,13 +262,6 @@ export default function POReview() {
                       value: c.email,
                     })) || []
                   }
-                />
-              </Form.Item>
-              <Form.Item label="Contact Email">
-                <Input
-                  value={selectedContact?.email || ''}
-                  readOnly
-                  disabled
                 />
               </Form.Item>
 
@@ -298,13 +281,6 @@ export default function POReview() {
                   }))}
                 />
               </Form.Item>
-              <Form.Item label="Bill-to Address">
-                <Input
-                  value={billToEntity?.address || ''}
-                  readOnly
-                  disabled
-                />
-              </Form.Item>
 
               <Divider />
 
@@ -322,13 +298,6 @@ export default function POReview() {
                   }))}
                 />
               </Form.Item>
-              <Form.Item label="Address">
-                <Input
-                  value={shipToEntity?.address || ''}
-                  readOnly
-                  disabled
-                />
-              </Form.Item>
               <Form.Item label="Contact">
                 <Input
                   value={shipToContact}
@@ -342,9 +311,6 @@ export default function POReview() {
               <Title level={5} style={{ marginBottom: 16 }}>
                 PO Details
               </Title>
-              <Form.Item label="PO Number">
-                <Input value={po.poNumber} readOnly disabled />
-              </Form.Item>
               <Form.Item label="Payment Terms">
                 <Select
                   value={terms}
@@ -353,13 +319,6 @@ export default function POReview() {
                     label: t,
                     value: t,
                   }))}
-                />
-              </Form.Item>
-              <Form.Item label="Reference Number">
-                <Input
-                  value={po.referenceNumber}
-                  readOnly
-                  disabled
                 />
               </Form.Item>
               <Form.Item label="Date">
@@ -376,9 +335,6 @@ export default function POReview() {
                   onChange={(val) => setCurrency(val)}
                   options={currencyOptions}
                 />
-              </Form.Item>
-              <Form.Item label="Incoterms">
-                <Input value="CIF" readOnly disabled />
               </Form.Item>
 
               <Divider />
@@ -432,8 +388,6 @@ export default function POReview() {
         <Col xs={24} lg={14}>
           <div
             style={{
-              maxHeight: 'calc(100vh - 120px)',
-              overflowY: 'auto',
               position: 'sticky',
               top: 24,
             }}

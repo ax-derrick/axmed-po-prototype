@@ -6,6 +6,8 @@ import {
   Statistic,
   Table,
   Tag,
+  Tabs,
+  Badge,
   Input,
   Select,
   Space,
@@ -21,9 +23,6 @@ import type { ColumnsType } from 'antd/es/table';
 import {
   FileTextOutlined,
   DollarOutlined,
-  EditOutlined,
-  CheckCircleOutlined,
-  SafetyCertificateOutlined,
   SearchOutlined,
   EllipsisOutlined,
   EyeOutlined,
@@ -47,13 +46,13 @@ const statusConfig: Record<POStatus, { label: string; color: string }> = {
   partially_confirmed: { label: 'Partially Confirmed', color: 'orange' },
 };
 
-const statusFilterOptions = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'cleared_by_commercial', label: 'Cleared by Commercial' },
-  { value: 'submitted', label: 'Submitted' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'partially_confirmed', label: 'Partially Confirmed' },
+const statusTabs: { key: string; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'draft', label: 'Draft' },
+  { key: 'cleared_by_commercial', label: 'Cleared by Commercial' },
+  { key: 'submitted', label: 'Submitted' },
+  { key: 'confirmed', label: 'Confirmed' },
+  { key: 'partially_confirmed', label: 'Partially Confirmed' },
 ];
 
 // ============ FORMATTING HELPERS ============
@@ -146,16 +145,16 @@ export default function FinancePurchaseOrders() {
   const stats = useMemo(() => {
     const totalPOs = pos.length;
     const totalValue = pos.reduce((sum, po) => sum + po.totalAmount, 0);
-    const draftCount = pos.filter((po) => po.status === 'draft').length;
-    const clearedCount = pos.filter(
-      (po) => po.status === 'cleared_by_commercial'
-    ).length;
-    const confirmedPartialCount = pos.filter(
-      (po) =>
-        po.status === 'confirmed' || po.status === 'partially_confirmed'
-    ).length;
+    return { totalPOs, totalValue };
+  }, [pos]);
 
-    return { totalPOs, totalValue, draftCount, clearedCount, confirmedPartialCount };
+  // Per-status counts for tab badges
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: pos.length };
+    for (const po of pos) {
+      counts[po.status] = (counts[po.status] || 0) + 1;
+    }
+    return counts;
   }, [pos]);
 
   // Delete handler
@@ -297,7 +296,7 @@ export default function FinancePurchaseOrders() {
 
       {/* Summary Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={8} lg={4} xl={4}>
+        <Col xs={24} sm={12} md={8} lg={6} xl={5}>
           <Card
             hoverable
             style={{
@@ -311,13 +310,12 @@ export default function FinancePurchaseOrders() {
               <Statistic
                 title="Total POs"
                 value={stats.totalPOs}
-                valueStyle={{ fontSize: 22, fontWeight: 600 }}
               />
             </div>
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} md={8} lg={5} xl={5}>
+        <Col xs={24} sm={12} md={8} lg={6} xl={5}>
           <Card
             hoverable
             style={{
@@ -333,74 +331,14 @@ export default function FinancePurchaseOrders() {
                 value={stats.totalValue}
                 precision={0}
                 prefix="$"
-                valueStyle={{ fontSize: 22, fontWeight: 600 }}
               />
             </div>
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} md={8} lg={5} xl={5}>
-          <Card
-            hoverable
-            style={{
-              borderRadius: 8,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            }}
-            styles={{ body: { padding: '20px 16px' } }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <IconCircle icon={<EditOutlined />} color="#1890ff" />
-              <Statistic
-                title="Draft"
-                value={stats.draftCount}
-                valueStyle={{ fontSize: 22, fontWeight: 600 }}
-              />
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={5} xl={5}>
-          <Card
-            hoverable
-            style={{
-              borderRadius: 8,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            }}
-            styles={{ body: { padding: '20px 16px' } }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <IconCircle icon={<CheckCircleOutlined />} color="#722ed1" />
-              <Statistic
-                title="Cleared by Commercial"
-                value={stats.clearedCount}
-                valueStyle={{ fontSize: 22, fontWeight: 600 }}
-              />
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={5} xl={5}>
-          <Card
-            hoverable
-            style={{
-              borderRadius: 8,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            }}
-            styles={{ body: { padding: '20px 16px' } }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <IconCircle icon={<SafetyCertificateOutlined />} color="#52c41a" />
-              <Statistic
-                title="Confirmed / Partial"
-                value={stats.confirmedPartialCount}
-                valueStyle={{ fontSize: 22, fontWeight: 600 }}
-              />
-            </div>
-          </Card>
-        </Col>
       </Row>
 
-      {/* Filter Bar + Table Container */}
+      {/* Tabs + Table Container */}
       <Card
         style={{
           borderRadius: 8,
@@ -408,10 +346,36 @@ export default function FinancePurchaseOrders() {
         }}
         styles={{ body: { padding: 0 } }}
       >
+        {/* Status Tabs */}
+        <Tabs
+          activeKey={statusFilter}
+          onChange={setStatusFilter}
+          style={{ paddingLeft: 24, paddingRight: 24 }}
+          items={statusTabs.map((tab) => ({
+            key: tab.key,
+            label: (
+              <span>
+                {tab.label}
+                <Badge
+                  count={statusCounts[tab.key] || 0}
+                  style={{
+                    marginLeft: 8,
+                    backgroundColor: statusFilter === tab.key ? '#392AB0' : '#f0f0f0',
+                    color: statusFilter === tab.key ? '#fff' : 'rgba(0,0,0,0.45)',
+                    fontSize: 12,
+                    boxShadow: 'none',
+                  }}
+                  overflowCount={999}
+                />
+              </span>
+            ),
+          }))}
+        />
+
         {/* Filter Bar */}
         <div
           style={{
-            padding: '16px 24px',
+            padding: '12px 24px',
             borderBottom: '1px solid #f0f0f0',
             display: 'flex',
             flexWrap: 'wrap',
@@ -426,12 +390,6 @@ export default function FinancePurchaseOrders() {
             onChange={(e) => setSearchText(e.target.value)}
             allowClear
             style={{ width: 280 }}
-          />
-          <Select
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={statusFilterOptions}
-            style={{ width: 220 }}
           />
           <Select
             value={cycleFilter}
