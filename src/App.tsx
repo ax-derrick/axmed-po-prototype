@@ -76,6 +76,8 @@ const menuItems: MenuItem[] = [
       { key: '/suppliers/organizations', label: 'Organizations' },
       { key: '/suppliers/users', label: 'Users' },
       { key: '/suppliers/quotations', label: 'Quotations' },
+      { key: '/supplier/awards', label: 'Awards' },
+      { key: '/supplier/fulfillment', label: 'Fulfillment' },
     ],
   },
   {
@@ -122,6 +124,8 @@ function getOpenKeys(pathname: string): string[] {
     '/suppliers/organizations': 'suppliers',
     '/suppliers/users': 'suppliers',
     '/suppliers/quotations': 'suppliers',
+    '/supplier/awards': 'suppliers',
+    '/supplier/fulfillment': 'suppliers',
     '/catalogue/skus': 'medicine-catalogue',
     '/catalogue/sku-categories': 'medicine-catalogue',
     '/catalogue/inns': 'medicine-catalogue',
