@@ -9,12 +9,11 @@ import {
   Input,
   Select,
   Collapse,
-  Descriptions,
-  message,
-  Tooltip,
+  Descriptions,  Tooltip,
   Space,
+  Spin,
 } from 'antd';
-import { SearchOutlined, FileTextOutlined } from '@ant-design/icons';
+import { SearchOutlined, FileTextOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { TableRowSelection, ColumnsType } from 'antd/es/table/interface';
 import {
@@ -48,6 +47,8 @@ function BuyerEvaluation() {
   const [searchText, setSearchText] = useState('');
   const [cycleFilter, setCycleFilter] = useState<string | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [creatingPOs, setCreatingPOs] = useState(false);
+  const [createSuccess, setCreateSuccess] = useState(false);
 
   // Derive unique cycle options from data
   const cycleOptions = useMemo(() => {
@@ -203,14 +204,18 @@ function BuyerEvaluation() {
   };
 
   const handleCreateDraftPOs = () => {
-    message.success(
-      `Successfully created ${draftPOGroups.length} draft PO${draftPOGroups.length > 1 ? 's' : ''}! Redirecting to Finance...`
-    );
     setDrawerOpen(false);
-    setSelectedRowKeys([]);
+    setCreatingPOs(true);
+
+    // Simulate PO creation, then show success before redirecting
+    setTimeout(() => {
+      setCreatingPOs(false);
+      setCreateSuccess(true);
+    }, 2000);
+
     setTimeout(() => {
       navigate('/finance/purchase-orders');
-    }, 600);
+    }, 3200);
   };
 
   return (
@@ -305,6 +310,53 @@ function BuyerEvaluation() {
         size="middle"
         style={{ background: '#fff' }}
       />
+
+      {/* Full-screen loading overlay */}
+      {(creatingPOs || createSuccess) && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          {creatingPOs ? (
+            <>
+              <Spin size="large" />
+              <Typography.Title
+                level={4}
+                style={{ marginTop: 24, color: '#392AB0' }}
+              >
+                Creating {draftPOGroups.length} Draft PO{draftPOGroups.length > 1 ? 's' : ''}...
+              </Typography.Title>
+              <Typography.Text type="secondary">
+                Grouping items by supplier, incoterms, and ship-to
+              </Typography.Text>
+            </>
+          ) : (
+            <>
+              <CheckCircleFilled
+                style={{ fontSize: 48, color: '#52c41a' }}
+              />
+              <Typography.Title
+                level={4}
+                style={{ marginTop: 16, color: 'rgba(0,0,0,0.88)' }}
+              >
+                {draftPOGroups.length} Draft PO{draftPOGroups.length > 1 ? 's' : ''} Created
+              </Typography.Title>
+              <Typography.Text type="secondary">
+                Redirecting to Finance...
+              </Typography.Text>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Initiate Draft PO Drawer */}
       <Drawer
