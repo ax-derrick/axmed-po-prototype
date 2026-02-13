@@ -162,7 +162,7 @@ function App() {
       {/* ---- Top Header ---- */}
       <Header className="admin-header">
         <div className="admin-logo">
-          <img src="/axmed-logo.png" alt="Axmed" style={{ height: 32 }} />
+          <img src="https://admin-demo.axmed.com/assets/common/logo.svg" alt="Axmed" style={{ height: 32 }} />
         </div>
         <div className="admin-user">
           <UserOutlined style={{ fontSize: 20 }} />

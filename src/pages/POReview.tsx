@@ -8,7 +8,6 @@ import {
   Form,
   Input,
   Select,
-  DatePicker,
   InputNumber,
   Switch,
   Typography,
@@ -79,13 +78,14 @@ export default function POReview() {
   const [vendorContactEmail, setVendorContactEmail] = useState<string>(
     supplierOrg?.contacts[0]?.email || ''
   );
+  const [customContactName, setCustomContactName] = useState<string>('');
+  const [customContactEmail, setCustomContactEmail] = useState<string>('');
+  const isCustomContact = vendorContactEmail === '__custom__';
   const [billToEntityId, setBillToEntityId] = useState<string>('le-2');
+  const [billToEmail, setBillToEmail] = useState<string>('finance@axmed.com');
   const [shipToEntityId, setShipToEntityId] = useState<string>('le-2');
-  const [shipToContact, setShipToContact] = useState<string>('finance@axmed.com');
-  const [terms, setTerms] = useState<string>('Net 30 on delivery');
-  const [poDate, setPoDate] = useState<dayjs.Dayjs>(
-    po?.createdAt ? dayjs(po.createdAt) : dayjs()
-  );
+  const [terms, setTerms] = useState<string>(po?.terms || 'Net 30 on Delivery');
+  const poDate = dayjs();
   const [currency, setCurrency] = useState<string>(po?.currency || 'USD');
   const [displayAsPacks, setDisplayAsPacks] = useState<boolean>(false);
   const [vatPercent, setVatPercent] = useState<number>(0);
@@ -256,14 +256,33 @@ export default function POReview() {
                   value={vendorContactEmail || undefined}
                   placeholder="Select a contact"
                   onChange={(val: string) => setVendorContactEmail(val)}
-                  options={
-                    supplierOrg?.contacts.map((c: { name: string; email: string; role: string }) => ({
+                  options={[
+                    ...(supplierOrg?.contacts.map((c: { name: string; email: string; role: string }) => ({
                       label: `${c.name} (${c.role})`,
                       value: c.email,
-                    })) || []
-                  }
+                    })) || []),
+                    { label: '+ Add custom contact', value: '__custom__' },
+                  ]}
                 />
               </Form.Item>
+              {isCustomContact && (
+                <>
+                  <Form.Item label="Contact Name">
+                    <Input
+                      value={customContactName}
+                      onChange={(e) => setCustomContactName(e.target.value)}
+                      placeholder="e.g. John Smith"
+                    />
+                  </Form.Item>
+                  <Form.Item label="Contact Email">
+                    <Input
+                      value={customContactEmail}
+                      onChange={(e) => setCustomContactEmail(e.target.value)}
+                      placeholder="e.g. john@supplier.com"
+                    />
+                  </Form.Item>
+                </>
+              )}
 
               <Divider />
 
@@ -281,6 +300,13 @@ export default function POReview() {
                   }))}
                 />
               </Form.Item>
+              <Form.Item label="Email">
+                <Input
+                  value={billToEmail}
+                  onChange={(e) => setBillToEmail(e.target.value)}
+                  placeholder="e.g. finance@axmed.com"
+                />
+              </Form.Item>
 
               <Divider />
 
@@ -288,7 +314,7 @@ export default function POReview() {
               <Title level={5} style={{ marginBottom: 16 }}>
                 Ship-to
               </Title>
-              <Form.Item label="Entity Name">
+              <Form.Item label="Axmed Entity Name">
                 <Select
                   value={shipToEntityId}
                   onChange={(val) => setShipToEntityId(val)}
@@ -298,10 +324,11 @@ export default function POReview() {
                   }))}
                 />
               </Form.Item>
-              <Form.Item label="Contact">
+              <Form.Item label="Delivery Address">
                 <Input
-                  value={shipToContact}
-                  onChange={(e) => setShipToContact(e.target.value)}
+                  value={`${po.shipToAddress}, ${po.shipToCity}, ${po.shipToCountry}`}
+                  readOnly
+                  variant="filled"
                 />
               </Form.Item>
 
@@ -322,11 +349,10 @@ export default function POReview() {
                 />
               </Form.Item>
               <Form.Item label="Date">
-                <DatePicker
-                  value={poDate}
-                  onChange={(date) => date && setPoDate(date)}
-                  style={{ width: '100%' }}
-                  format="DD MMM YYYY"
+                <Input
+                  value={poDate.format('DD MMM YYYY')}
+                  readOnly
+                  variant="filled"
                 />
               </Form.Item>
               <Form.Item label="Currency">
@@ -397,19 +423,19 @@ export default function POReview() {
               status={status}
               supplierName={po.supplier}
               supplierAddress={supplierOrg?.address || 'N/A'}
-              vendorContact={selectedContact?.name || ''}
-              vendorEmail={selectedContact?.email || ''}
+              vendorContact={isCustomContact ? customContactName : (selectedContact?.name || '')}
+              vendorEmail={isCustomContact ? customContactEmail : (selectedContact?.email || '')}
               billToEntity={billToEntity?.name || ''}
               billToAddress={billToEntity?.address || ''}
+              billToEmail={billToEmail}
               shipToEntity={shipToEntity?.name || ''}
-              shipToAddress={shipToEntity?.address || ''}
-              shipToContact={shipToContact}
+              shipToAddress={`${po.shipToAddress}, ${po.shipToCity}, ${po.shipToCountry}`}
               poNumber={po.poNumber}
               paymentTerms={terms}
               referenceNumber={po.referenceNumber}
               date={poDate.format('DD MMM YYYY')}
               currency={currency}
-              incoterms="CIF"
+              incoterms={po.incoterm}
               displayAsPacks={displayAsPacks}
               vatPercent={vatPercent}
               subtotal={subtotal}
@@ -434,9 +460,9 @@ interface PODocumentPreviewProps {
   vendorEmail: string;
   billToEntity: string;
   billToAddress: string;
+  billToEmail: string;
   shipToEntity: string;
   shipToAddress: string;
-  shipToContact: string;
   poNumber: string;
   paymentTerms: string;
   referenceNumber: string;
@@ -458,9 +484,9 @@ function PODocumentPreview({
   vendorEmail,
   billToEntity,
   billToAddress,
+  billToEmail,
   shipToEntity,
   shipToAddress,
-  shipToContact,
   poNumber,
   paymentTerms: terms,
   referenceNumber,
@@ -515,7 +541,7 @@ function PODocumentPreview({
             </h1>
           </div>
           <img
-            src="/axmed-logo.png"
+            src={`${import.meta.env.BASE_URL}axmed-logo.png`}
             alt="Axmed"
             style={{ height: 36 }}
           />
@@ -548,6 +574,9 @@ function PODocumentPreview({
               <strong>{billToEntity}</strong>
             </div>
             <div style={docFieldStyle}>{billToAddress}</div>
+            {billToEmail && (
+              <div style={docFieldStyle}>Email: {billToEmail}</div>
+            )}
           </div>
         </div>
 
@@ -565,7 +594,6 @@ function PODocumentPreview({
               <strong>{shipToEntity}</strong>
             </div>
             <div style={docFieldStyle}>{shipToAddress}</div>
-            <div style={docFieldStyle}>Contact: {shipToContact}</div>
           </div>
           <div style={{ flex: 1 }}>
             <div style={sectionHeaderStyle}>PO Details</div>
@@ -621,23 +649,31 @@ function PODocumentPreview({
             </tr>
           </thead>
           <tbody>
-            {po.lineItems.map((item) => (
-              <tr key={item.id}>
-                <td style={tdStyle}>{item.product}</td>
-                <td style={tdStyle}>
-                  {item.description}
-                </td>
-                <td style={{ ...tdStyle, textAlign: 'right' }}>
-                  {item.quantity.toLocaleString()}
-                </td>
-                <td style={{ ...tdStyle, textAlign: 'right' }}>
-                  {formatCurrency(item.unitPrice, currency)}
-                </td>
-                <td style={{ ...tdStyle, textAlign: 'right' }}>
-                  {formatCurrency(item.amount, currency)}
-                </td>
-              </tr>
-            ))}
+            {po.lineItems.map((item) => {
+              const qty = displayAsPacks && item.packSize > 0
+                ? Math.ceil(item.quantity / item.packSize)
+                : item.quantity;
+              const rate = displayAsPacks && item.packSize > 0
+                ? item.packPrice
+                : item.unitPrice;
+              return (
+                <tr key={item.id}>
+                  <td style={tdStyle}>{item.product}</td>
+                  <td style={tdStyle}>
+                    {item.description}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>
+                    {qty.toLocaleString()}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>
+                    {formatCurrency(rate, currency)}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>
+                    {formatCurrency(item.amount, currency)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr>
@@ -710,8 +746,9 @@ function PODocumentPreview({
           </tfoot>
         </table>
 
-        {/* Legal Notes */}
+        {/* Notes */}
         <div style={{ marginTop: 32 }}>
+          <div style={sectionHeaderStyle}>Notes</div>
           <div
             style={{
               fontSize: 11,
