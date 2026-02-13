@@ -30,7 +30,8 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { purchaseOrders, type PurchaseOrder } from '../data/mockData';
+import type { PurchaseOrder } from '../data/mockData';
+import { usePOFlow } from '../context/POFlowContext';
 
 type POStatus = PurchaseOrder['status'];
 
@@ -106,13 +107,13 @@ function IconCircle({
 export default function FinancePurchaseOrders() {
   const navigate = useNavigate();
 
+  // Shared PO state from context
+  const { purchaseOrders: pos, deleteDraftPO } = usePOFlow();
+
   // Filter state
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [cycleFilter, setCycleFilter] = useState<string>('all');
-
-  // Local PO state (to support delete)
-  const [pos, setPos] = useState<PurchaseOrder[]>(purchaseOrders);
 
   // Derive unique cycles from data
   const cycleOptions = useMemo(() => {
@@ -159,7 +160,7 @@ export default function FinancePurchaseOrders() {
 
   // Delete handler
   const handleDelete = (poId: string) => {
-    setPos((prev) => prev.filter((po) => po.id !== poId));
+    deleteDraftPO(poId);
     message.success('Draft PO deleted. Items reverted to buyer evaluation.');
   };
 

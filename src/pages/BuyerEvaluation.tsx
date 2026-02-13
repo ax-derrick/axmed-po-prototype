@@ -16,11 +16,9 @@ import {
 import { SearchOutlined, FileTextOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { TableRowSelection, ColumnsType } from 'antd/es/table/interface';
-import {
-  orderItems,
-  groupOrderItemsIntoDraftPOs,
-} from '../data/mockData';
+import { groupOrderItemsIntoDraftPOs } from '../data/mockData';
 import type { OrderItem, DraftPOGroup } from '../data/mockData';
+import { usePOFlow } from '../context/POFlowContext';
 
 const { Title, Text } = Typography;
 
@@ -42,6 +40,7 @@ const formatCurrency = (value: number, currency = 'USD'): string => {
 
 function BuyerEvaluation() {
   const navigate = useNavigate();
+  const { orderItems, createDraftPOs } = usePOFlow();
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -54,7 +53,7 @@ function BuyerEvaluation() {
   const cycleOptions = useMemo(() => {
     const unique = Array.from(new Set(orderItems.map((item) => item.cycleName)));
     return unique.map((name) => ({ label: name, value: name }));
-  }, []);
+  }, [orderItems]);
 
   // Derive unique status options from data
   const statusOptions = useMemo(() => {
@@ -63,7 +62,7 @@ function BuyerEvaluation() {
       label: statusConfig[s]?.label ?? s,
       value: s,
     }));
-  }, []);
+  }, [orderItems]);
 
   // Filter data
   const filteredData = useMemo(() => {
@@ -76,12 +75,12 @@ function BuyerEvaluation() {
       const matchesStatus = !statusFilter || item.status === statusFilter;
       return matchesSearch && matchesCycle && matchesStatus;
     });
-  }, [searchText, cycleFilter, statusFilter]);
+  }, [orderItems, searchText, cycleFilter, statusFilter]);
 
   // Selected items for draft PO
   const selectedItems = useMemo(() => {
     return orderItems.filter((item) => selectedRowKeys.includes(item.id));
-  }, [selectedRowKeys]);
+  }, [orderItems, selectedRowKeys]);
 
   // Draft PO groups
   const draftPOGroups = useMemo<DraftPOGroup[]>(() => {
@@ -207,8 +206,10 @@ function BuyerEvaluation() {
     setDrawerOpen(false);
     setCreatingPOs(true);
 
-    // Simulate PO creation, then show success before redirecting
+    // Actually create the POs via shared context, then show success before redirecting
     setTimeout(() => {
+      createDraftPOs(draftPOGroups);
+      setSelectedRowKeys([]);
       setCreatingPOs(false);
       setCreateSuccess(true);
     }, 2000);

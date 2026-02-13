@@ -91,6 +91,7 @@ export interface PurchaseOrder {
   incoterm: string;
   vatPercent: number;
   lineItems: POLineItem[];
+  sourceOrderItemIds?: string[];
 }
 
 export interface PlannedShipment {

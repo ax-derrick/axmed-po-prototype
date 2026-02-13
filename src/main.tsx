@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { ConfigProvider } from 'antd';
 import { HashRouter } from 'react-router-dom';
 import App from './App';
+import { POFlowProvider } from './context/POFlowContext';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -17,7 +18,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       }}
     >
       <HashRouter>
-        <App />
+        <POFlowProvider>
+          <App />
+        </POFlowProvider>
       </HashRouter>
     </ConfigProvider>
   </React.StrictMode>

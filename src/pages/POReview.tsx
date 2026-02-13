@@ -17,12 +17,12 @@ import {
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
-  purchaseOrders,
   supplierOrganizations,
   legalEntities,
   paymentTerms,
 } from '../data/mockData';
 import type { PurchaseOrder } from '../data/mockData';
+import { usePOFlow } from '../context/POFlowContext';
 
 type POStatus = PurchaseOrder['status'];
 
@@ -61,6 +61,7 @@ function formatCurrency(amount: number, currency: string): string {
 export default function POReview() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { purchaseOrders, updatePOStatus } = usePOFlow();
 
   // Find the PO
   const po = purchaseOrders.find((p) => p.id === id);
@@ -150,6 +151,7 @@ export default function POReview() {
       cancelText: 'Cancel',
       onOk: () => {
         setStatus('cleared_by_commercial');
+        updatePOStatus(po!.id, 'cleared_by_commercial');
         message.success(
           'PO marked as completed and sent to Finance for review.'
         );
@@ -166,6 +168,7 @@ export default function POReview() {
       cancelText: 'Cancel',
       onOk: () => {
         setStatus('submitted');
+        updatePOStatus(po!.id, 'submitted');
         message.success('PO has been sent to the supplier.');
       },
     });
@@ -180,6 +183,7 @@ export default function POReview() {
       cancelText: 'Cancel',
       onOk: () => {
         setStatus('draft');
+        updatePOStatus(po!.id, 'draft');
         message.success('PO has been reverted to draft status.');
       },
     });
