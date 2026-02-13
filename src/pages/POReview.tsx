@@ -83,7 +83,7 @@ export default function POReview() {
   const isCustomContact = vendorContactEmail === '__custom__';
   const [billToEntityId, setBillToEntityId] = useState<string>('le-2');
   const [billToEmail, setBillToEmail] = useState<string>('finance@axmed.com');
-  const [shipToEntityId, setShipToEntityId] = useState<string>('le-2');
+  const [shipToName, setShipToName] = useState<string>(po?.shipToName || '');
   const [terms, setTerms] = useState<string>(po?.terms || 'Net 30 on Delivery');
   const poDate = dayjs();
   const [currency, setCurrency] = useState<string>(po?.currency || 'USD');
@@ -100,9 +100,13 @@ export default function POReview() {
     return legalEntities.find((e) => e.id === billToEntityId) || null;
   }, [billToEntityId]);
 
-  const shipToEntity = useMemo(() => {
-    return legalEntities.find((e) => e.id === shipToEntityId) || null;
-  }, [shipToEntityId]);
+  const shipToOptions = useMemo(() => {
+    const options = legalEntities.map((e) => ({ label: e.name, value: e.name }));
+    if (po?.shipToName) {
+      options.unshift({ label: po.shipToName, value: po.shipToName });
+    }
+    return options;
+  }, [po]);
 
   const subtotal = useMemo(() => {
     if (!po) return 0;
@@ -314,14 +318,11 @@ export default function POReview() {
               <Title level={5} style={{ marginBottom: 16 }}>
                 Ship-to
               </Title>
-              <Form.Item label="Axmed Entity Name">
+              <Form.Item label="Ship-to Name">
                 <Select
-                  value={shipToEntityId}
-                  onChange={(val) => setShipToEntityId(val)}
-                  options={legalEntities.map((e) => ({
-                    label: e.name,
-                    value: e.id,
-                  }))}
+                  value={shipToName}
+                  onChange={(val) => setShipToName(val)}
+                  options={shipToOptions}
                 />
               </Form.Item>
               <Form.Item label="Delivery Address">
@@ -428,7 +429,7 @@ export default function POReview() {
               billToEntity={billToEntity?.name || ''}
               billToAddress={billToEntity?.address || ''}
               billToEmail={billToEmail}
-              shipToEntity={shipToEntity?.name || ''}
+              shipToEntity={shipToName}
               shipToAddress={`${po.shipToAddress}, ${po.shipToCity}, ${po.shipToCountry}`}
               poNumber={po.poNumber}
               paymentTerms={terms}
