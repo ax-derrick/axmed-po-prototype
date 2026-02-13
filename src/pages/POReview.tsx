@@ -1,8 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Row,
-  Col,
   Button,
   Tag,
   Form,
@@ -188,16 +186,17 @@ export default function POReview() {
   };
 
   return (
-    <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', background: '#f5f5f5', margin: -24 }}>
       {/* Top Bar */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          padding: '16px 24px',
           flexWrap: 'wrap',
           gap: 12,
+          flexShrink: 0,
         }}
       >
         <Space align="center" size={16}>
@@ -238,16 +237,15 @@ export default function POReview() {
         </Space>
       </div>
 
-      {/* Two Column Layout */}
-      <Row gutter={24} align="stretch">
+      {/* Two Column Layout — both panels scroll independently */}
+      <div style={{ display: 'flex', flex: 1, gap: 24, padding: '0 24px 24px', minHeight: 0 }}>
         {/* Left Column — Form */}
-        <Col xs={24} lg={10}>
+        <div style={{ flex: '0 0 41.67%', maxWidth: '41.67%', overflowY: 'auto' }}>
           <div
             style={{
               background: '#fff',
               padding: 24,
               borderRadius: 8,
-              marginBottom: 24,
             }}
           >
             <Form layout="vertical" size="middle">
@@ -409,43 +407,36 @@ export default function POReview() {
               </Form.Item>
             </Form>
           </div>
-        </Col>
+        </div>
 
         {/* Right Column — Document Preview */}
-        <Col xs={24} lg={14}>
-          <div
-            style={{
-              position: 'sticky',
-              top: 24,
-            }}
-          >
-            <PODocumentPreview
-              po={po}
-              status={status}
-              supplierName={po.supplier}
-              supplierAddress={supplierOrg?.address || 'N/A'}
-              vendorContact={isCustomContact ? customContactName : (selectedContact?.name || '')}
-              vendorEmail={isCustomContact ? customContactEmail : (selectedContact?.email || '')}
-              billToEntity={billToEntity?.name || ''}
-              billToAddress={billToEntity?.address || ''}
-              billToEmail={billToEmail}
-              shipToEntity={shipToName}
-              shipToAddress={`${po.shipToAddress}, ${po.shipToCity}, ${po.shipToCountry}`}
-              poNumber={po.poNumber}
-              paymentTerms={terms}
-              referenceNumber={po.referenceNumber}
-              date={poDate.format('DD MMM YYYY')}
-              currency={currency}
-              incoterms={po.incoterm}
-              displayAsPacks={displayAsPacks}
-              vatPercent={vatPercent}
-              subtotal={subtotal}
-              vatAmount={vatAmount}
-              grandTotal={grandTotal}
-            />
-          </div>
-        </Col>
-      </Row>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <PODocumentPreview
+            po={po}
+            status={status}
+            supplierName={po.supplier}
+            supplierAddress={supplierOrg?.address || 'N/A'}
+            vendorContact={isCustomContact ? customContactName : (selectedContact?.name || '')}
+            vendorEmail={isCustomContact ? customContactEmail : (selectedContact?.email || '')}
+            billToEntity={billToEntity?.name || ''}
+            billToAddress={billToEntity?.address || ''}
+            billToEmail={billToEmail}
+            shipToEntity={shipToName}
+            shipToAddress={`${po.shipToAddress}, ${po.shipToCity}, ${po.shipToCountry}`}
+            poNumber={po.poNumber}
+            paymentTerms={terms}
+            referenceNumber={po.referenceNumber}
+            date={poDate.format('DD MMM YYYY')}
+            currency={currency}
+            incoterms={po.incoterm}
+            displayAsPacks={displayAsPacks}
+            vatPercent={vatPercent}
+            subtotal={subtotal}
+            vatAmount={vatAmount}
+            grandTotal={grandTotal}
+          />
+        </div>
+      </div>
     </div>
   );
 }
