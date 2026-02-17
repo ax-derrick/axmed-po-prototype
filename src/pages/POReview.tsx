@@ -531,6 +531,14 @@ function LineItemStatusPanel({ lineItems, currency, vatPercent }: { lineItems: P
       },
     },
     {
+      title: 'Description',
+      dataIndex: 'description',
+      key: 'description',
+      render: (text: string) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>{text}</Text>
+      ),
+    },
+    {
       title: 'Ordered qty',
       dataIndex: 'quantity',
       key: 'quantity',
