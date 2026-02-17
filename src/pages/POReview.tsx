@@ -17,7 +17,7 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, FileTextOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
   supplierOrganizations,
@@ -124,6 +124,7 @@ export default function POReview() {
   }, [subtotal, vatAmount]);
 
   const isReadOnly = status === 'submitted' || status === 'confirmed' || status === 'partially_confirmed';
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Not found
   if (!po) {
@@ -224,7 +225,14 @@ export default function POReview() {
           <Tag color={statusColorMap[status]}>{statusLabelMap[status]}</Tag>
         </Space>
 
-        {!isReadOnly && (
+        {isReadOnly ? (
+          <Button
+            icon={<FileTextOutlined />}
+            onClick={() => setPreviewOpen((o) => !o)}
+          >
+            {previewOpen ? 'Hide Document' : 'View PO Document'}
+          </Button>
+        ) : (
           <Space wrap>
             <Button onClick={handleSaveDraft}>Save as Draft</Button>
             {status === 'draft' && (
@@ -251,9 +259,9 @@ export default function POReview() {
       {/* Body */}
       <div style={{ display: 'flex', flex: 1, gap: 24, padding: '0 24px 24px', minHeight: 0 }}>
         {/* Left Column — Form / Line Item Status */}
-        <div style={{ flex: `0 0 ${isReadOnly ? '55%' : '41.67%'}`, maxWidth: isReadOnly ? '55%' : '41.67%', overflowY: 'auto' }}>
+        <div style={{ flex: isReadOnly && !previewOpen ? 1 : `0 0 ${isReadOnly ? '55%' : '41.67%'}`, maxWidth: isReadOnly && !previewOpen ? '100%' : (isReadOnly ? '55%' : '41.67%'), overflowY: 'auto' }}>
         {isReadOnly ? (
-          <LineItemStatusPanel lineItems={po.lineItems} />
+          <LineItemStatusPanel lineItems={po.lineItems} currency={po.currency} vatPercent={vatPercent} />
         ) : (
           <div
             style={{
@@ -425,42 +433,44 @@ export default function POReview() {
         </div>
 
         {/* Right Column — Document Preview */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {isReadOnly && (
-            <Alert
-              message="This PO has been submitted and cannot be edited."
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
-          <div style={isReadOnly ? { zoom: 0.65 } : undefined}>
-            <PODocumentPreview
-              po={po}
-              status={status}
-              supplierName={po.supplier}
-              supplierAddress={supplierOrg?.address || 'N/A'}
-              vendorContact={isCustomContact ? customContactName : (selectedContact?.name || '')}
-              vendorEmail={isCustomContact ? customContactEmail : (selectedContact?.email || '')}
-              billToEntity={billToEntity?.name || ''}
-              billToAddress={billToEntity?.address || ''}
-              billToEmail={billToEmail}
-              shipToEntity={shipToName}
-              shipToAddress={`${po.shipToAddress}, ${po.shipToCity}, ${po.shipToCountry}`}
-              poNumber={po.poNumber}
-              paymentTerms={terms}
-              referenceNumber={po.referenceNumber}
-              date={poDate.format('DD MMM YYYY')}
-              currency={currency}
-              incoterms={po.incoterm}
-              displayAsPacks={displayAsPacks}
-              vatPercent={vatPercent}
-              subtotal={subtotal}
-              vatAmount={vatAmount}
-              grandTotal={grandTotal}
-            />
+        {(!isReadOnly || previewOpen) && (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {isReadOnly && (
+              <Alert
+                message="This PO has been submitted and cannot be edited."
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
+            <div style={isReadOnly ? { zoom: 0.65 } : undefined}>
+              <PODocumentPreview
+                po={po}
+                status={status}
+                supplierName={po.supplier}
+                supplierAddress={supplierOrg?.address || 'N/A'}
+                vendorContact={isCustomContact ? customContactName : (selectedContact?.name || '')}
+                vendorEmail={isCustomContact ? customContactEmail : (selectedContact?.email || '')}
+                billToEntity={billToEntity?.name || ''}
+                billToAddress={billToEntity?.address || ''}
+                billToEmail={billToEmail}
+                shipToEntity={shipToName}
+                shipToAddress={`${po.shipToAddress}, ${po.shipToCity}, ${po.shipToCountry}`}
+                poNumber={po.poNumber}
+                paymentTerms={terms}
+                referenceNumber={po.referenceNumber}
+                date={poDate.format('DD MMM YYYY')}
+                currency={currency}
+                incoterms={po.incoterm}
+                displayAsPacks={displayAsPacks}
+                vatPercent={vatPercent}
+                subtotal={subtotal}
+                vatAmount={vatAmount}
+                grandTotal={grandTotal}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -474,10 +484,25 @@ const lineItemStatusConfig: Record<LineItemStatus, { label: string; color: strin
   pending: { label: 'Pending', color: 'default' },
   confirmed: { label: 'Confirmed', color: 'green' },
   partially_confirmed: { label: 'Partially Confirmed', color: 'gold' },
-  rejected: { label: 'Rejected', color: 'red' },
+  rejected: { label: 'Withdrawn', color: 'red' },
 };
 
-function LineItemStatusPanel({ lineItems }: { lineItems: POLineItem[] }) {
+function LineItemStatusPanel({ lineItems, currency, vatPercent }: { lineItems: POLineItem[]; currency: string; vatPercent: number }) {
+  const fmt = (amount: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2 }).format(amount);
+
+  const isConfirmedStatus = (s?: POLineItem['status']) =>
+    s === 'confirmed' || s === 'partially_confirmed';
+
+  const confirmedSubtotal = lineItems.reduce((sum, item) => {
+    if (!isConfirmedStatus(item.status) || item.confirmedQuantity == null) return sum;
+    return sum + item.confirmedQuantity * item.unitPrice;
+  }, 0);
+
+  const anyConfirmed = lineItems.some((item) => isConfirmedStatus(item.status));
+  const vatAmount = confirmedSubtotal * (vatPercent / 100);
+  const confirmedGrandTotal = confirmedSubtotal + vatAmount;
+
   const columns: ColumnsType<POLineItem> = [
     {
       title: 'Product',
@@ -492,7 +517,7 @@ function LineItemStatusPanel({ lineItems }: { lineItems: POLineItem[] }) {
       ),
     },
     {
-      title: 'Ordered',
+      title: 'Ordered qty',
       dataIndex: 'quantity',
       key: 'quantity',
       width: 110,
@@ -500,13 +525,32 @@ function LineItemStatusPanel({ lineItems }: { lineItems: POLineItem[] }) {
       render: (qty: number) => qty.toLocaleString(),
     },
     {
-      title: 'Confirmed',
+      title: 'Confirmed qty',
       key: 'confirmedQuantity',
-      width: 110,
+      width: 120,
       align: 'right',
       render: (_: unknown, record: POLineItem) => {
-        if (record.confirmedQuantity == null) return <Text type="secondary">—</Text>;
-        return record.confirmedQuantity.toLocaleString();
+        if (!isConfirmedStatus(record.status)) return <Text type="secondary">—</Text>;
+        return record.confirmedQuantity?.toLocaleString() ?? '—';
+      },
+    },
+    {
+      title: 'Rate',
+      key: 'unitPrice',
+      width: 100,
+      align: 'right',
+      render: (_: unknown, record: POLineItem) => fmt(record.unitPrice),
+    },
+    {
+      title: 'Confirmed total',
+      key: 'confirmedTotal',
+      width: 140,
+      align: 'right',
+      render: (_: unknown, record: POLineItem) => {
+        if (!isConfirmedStatus(record.status) || record.confirmedQuantity == null) {
+          return <Text type="secondary">—</Text>;
+        }
+        return <Text strong>{fmt(record.confirmedQuantity * record.unitPrice)}</Text>;
       },
     },
     {
@@ -523,7 +567,7 @@ function LineItemStatusPanel({ lineItems }: { lineItems: POLineItem[] }) {
 
   return (
     <div style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
-      <Title level={5} style={{ marginBottom: 16 }}>Line Item Status</Title>
+      <Title level={5} style={{ marginBottom: 16 }}>Accounts Payable</Title>
       <Table<POLineItem>
         columns={columns}
         dataSource={lineItems}
@@ -531,6 +575,28 @@ function LineItemStatusPanel({ lineItems }: { lineItems: POLineItem[] }) {
         pagination={false}
         bordered
         size="small"
+        footer={() => (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Text type="secondary" style={{ fontSize: 13 }}>Confirmed subtotal:</Text>
+              <Text style={{ fontSize: 13, minWidth: 100, textAlign: 'right' }}>
+                {anyConfirmed ? fmt(confirmedSubtotal) : '—'}
+              </Text>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Text type="secondary" style={{ fontSize: 13 }}>VAT ({vatPercent}%):</Text>
+              <Text style={{ fontSize: 13, minWidth: 100, textAlign: 'right' }}>
+                {anyConfirmed ? fmt(vatAmount) : '—'}
+              </Text>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', borderTop: '1px solid #d9d9d9', paddingTop: 4, marginTop: 2 }}>
+              <Text type="secondary" style={{ fontSize: 13 }}>Confirmed total:</Text>
+              <Text strong style={{ fontSize: 14, minWidth: 100, textAlign: 'right' }}>
+                {anyConfirmed ? fmt(confirmedGrandTotal) : '—'}
+              </Text>
+            </div>
+          </div>
+        )}
       />
     </div>
   );
