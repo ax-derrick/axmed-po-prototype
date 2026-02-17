@@ -478,6 +478,13 @@ export default function POReview() {
 
 // ============ Line Item Status Panel ============
 
+/** Splits "Amoxicillin 500mg Capsules" → { name: "Amoxicillin", presentation: "500mg Capsules" } */
+function splitProductName(product: string): { name: string; presentation: string } {
+  const match = product.match(/^(.+?)\s+(\d.+)$/);
+  if (match) return { name: match[1], presentation: match[2] };
+  return { name: product, presentation: '' };
+}
+
 type LineItemStatus = NonNullable<POLineItem['status']>;
 
 const lineItemStatusConfig: Record<LineItemStatus, { label: string; color: string }> = {
@@ -508,13 +515,20 @@ function LineItemStatusPanel({ lineItems, currency, vatPercent }: { lineItems: P
       title: 'Product',
       dataIndex: 'product',
       key: 'product',
-      render: (text: string, record) => (
-        <div>
-          <Text strong style={{ fontSize: 13 }}>{text}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>{record.description}</Text>
-        </div>
-      ),
+      render: (text: string) => {
+        const { name, presentation } = splitProductName(text);
+        return (
+          <div>
+            <Text strong style={{ fontSize: 13 }}>{name}</Text>
+            {presentation && (
+              <>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>{presentation}</Text>
+              </>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: 'Ordered qty',
