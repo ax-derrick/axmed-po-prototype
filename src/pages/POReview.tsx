@@ -12,8 +12,11 @@ import {
   Divider,
   Space,
   Modal,
+  Alert,
+  Table,
   message,
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -21,7 +24,7 @@ import {
   legalEntities,
   paymentTerms,
 } from '../data/mockData';
-import type { PurchaseOrder } from '../data/mockData';
+import type { PurchaseOrder, POLineItem } from '../data/mockData';
 import { usePOFlow } from '../context/POFlowContext';
 
 type POStatus = PurchaseOrder['status'];
@@ -119,6 +122,8 @@ export default function POReview() {
   const grandTotal = useMemo(() => {
     return subtotal + vatAmount;
   }, [subtotal, vatAmount]);
+
+  const isReadOnly = status === 'submitted' || status === 'confirmed' || status === 'partially_confirmed';
 
   // Not found
   if (!po) {
@@ -219,32 +224,37 @@ export default function POReview() {
           <Tag color={statusColorMap[status]}>{statusLabelMap[status]}</Tag>
         </Space>
 
-        <Space wrap>
-          <Button onClick={handleSaveDraft}>Save as Draft</Button>
-          {status === 'draft' && (
-            <Button type="primary" onClick={handleMarkCompleted}>
-              Mark as Completed
-            </Button>
-          )}
-          {status === 'cleared_by_commercial' && (
-            <>
-              <Button onClick={handleSendBackToDraft}>Send Back to Draft</Button>
-              <Button
-                type="primary"
-                style={{ backgroundColor: '#392AB0', borderColor: '#392AB0' }}
-                onClick={handleSendToSupplier}
-              >
-                Send to Supplier
+        {!isReadOnly && (
+          <Space wrap>
+            <Button onClick={handleSaveDraft}>Save as Draft</Button>
+            {status === 'draft' && (
+              <Button type="primary" onClick={handleMarkCompleted}>
+                Mark as Completed
               </Button>
-            </>
-          )}
-        </Space>
+            )}
+            {status === 'cleared_by_commercial' && (
+              <>
+                <Button onClick={handleSendBackToDraft}>Send Back to Draft</Button>
+                <Button
+                  type="primary"
+                  style={{ backgroundColor: '#392AB0', borderColor: '#392AB0' }}
+                  onClick={handleSendToSupplier}
+                >
+                  Send to Supplier
+                </Button>
+              </>
+            )}
+          </Space>
+        )}
       </div>
 
-      {/* Two Column Layout — both panels scroll independently */}
+      {/* Body */}
       <div style={{ display: 'flex', flex: 1, gap: 24, padding: '0 24px 24px', minHeight: 0 }}>
-        {/* Left Column — Form */}
-        <div style={{ flex: '0 0 41.67%', maxWidth: '41.67%', overflowY: 'auto' }}>
+        {/* Left Column — Form / Line Item Status */}
+        <div style={{ flex: `0 0 ${isReadOnly ? '55%' : '41.67%'}`, maxWidth: isReadOnly ? '55%' : '41.67%', overflowY: 'auto' }}>
+        {isReadOnly ? (
+          <LineItemStatusPanel lineItems={po.lineItems} />
+        ) : (
           <div
             style={{
               background: '#fff',
@@ -411,36 +421,117 @@ export default function POReview() {
               </Form.Item>
             </Form>
           </div>
+        )}
         </div>
 
         {/* Right Column — Document Preview */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <PODocumentPreview
-            po={po}
-            status={status}
-            supplierName={po.supplier}
-            supplierAddress={supplierOrg?.address || 'N/A'}
-            vendorContact={isCustomContact ? customContactName : (selectedContact?.name || '')}
-            vendorEmail={isCustomContact ? customContactEmail : (selectedContact?.email || '')}
-            billToEntity={billToEntity?.name || ''}
-            billToAddress={billToEntity?.address || ''}
-            billToEmail={billToEmail}
-            shipToEntity={shipToName}
-            shipToAddress={`${po.shipToAddress}, ${po.shipToCity}, ${po.shipToCountry}`}
-            poNumber={po.poNumber}
-            paymentTerms={terms}
-            referenceNumber={po.referenceNumber}
-            date={poDate.format('DD MMM YYYY')}
-            currency={currency}
-            incoterms={po.incoterm}
-            displayAsPacks={displayAsPacks}
-            vatPercent={vatPercent}
-            subtotal={subtotal}
-            vatAmount={vatAmount}
-            grandTotal={grandTotal}
-          />
+          {isReadOnly && (
+            <Alert
+              message="This PO has been submitted and cannot be edited."
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
+          <div style={isReadOnly ? { zoom: 0.65 } : undefined}>
+            <PODocumentPreview
+              po={po}
+              status={status}
+              supplierName={po.supplier}
+              supplierAddress={supplierOrg?.address || 'N/A'}
+              vendorContact={isCustomContact ? customContactName : (selectedContact?.name || '')}
+              vendorEmail={isCustomContact ? customContactEmail : (selectedContact?.email || '')}
+              billToEntity={billToEntity?.name || ''}
+              billToAddress={billToEntity?.address || ''}
+              billToEmail={billToEmail}
+              shipToEntity={shipToName}
+              shipToAddress={`${po.shipToAddress}, ${po.shipToCity}, ${po.shipToCountry}`}
+              poNumber={po.poNumber}
+              paymentTerms={terms}
+              referenceNumber={po.referenceNumber}
+              date={poDate.format('DD MMM YYYY')}
+              currency={currency}
+              incoterms={po.incoterm}
+              displayAsPacks={displayAsPacks}
+              vatPercent={vatPercent}
+              subtotal={subtotal}
+              vatAmount={vatAmount}
+              grandTotal={grandTotal}
+            />
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ============ Line Item Status Panel ============
+
+type LineItemStatus = NonNullable<POLineItem['status']>;
+
+const lineItemStatusConfig: Record<LineItemStatus, { label: string; color: string }> = {
+  pending: { label: 'Pending', color: 'default' },
+  confirmed: { label: 'Confirmed', color: 'green' },
+  partially_confirmed: { label: 'Partially Confirmed', color: 'gold' },
+  rejected: { label: 'Rejected', color: 'red' },
+};
+
+function LineItemStatusPanel({ lineItems }: { lineItems: POLineItem[] }) {
+  const columns: ColumnsType<POLineItem> = [
+    {
+      title: 'Product',
+      dataIndex: 'product',
+      key: 'product',
+      render: (text: string, record) => (
+        <div>
+          <Text strong style={{ fontSize: 13 }}>{text}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>{record.description}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Ordered',
+      dataIndex: 'quantity',
+      key: 'quantity',
+      width: 110,
+      align: 'right',
+      render: (qty: number) => qty.toLocaleString(),
+    },
+    {
+      title: 'Confirmed',
+      key: 'confirmedQuantity',
+      width: 110,
+      align: 'right',
+      render: (_: unknown, record: POLineItem) => {
+        if (record.confirmedQuantity == null) return <Text type="secondary">—</Text>;
+        return record.confirmedQuantity.toLocaleString();
+      },
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      width: 160,
+      render: (_: unknown, record: POLineItem) => {
+        if (!record.status) return <Tag>—</Tag>;
+        const cfg = lineItemStatusConfig[record.status];
+        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      },
+    },
+  ];
+
+  return (
+    <div style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
+      <Title level={5} style={{ marginBottom: 16 }}>Line Item Status</Title>
+      <Table<POLineItem>
+        columns={columns}
+        dataSource={lineItems}
+        rowKey="id"
+        pagination={false}
+        bordered
+        size="small"
+      />
     </div>
   );
 }
@@ -504,7 +595,7 @@ function PODocumentPreview({
         border: '1px solid #e8e8e8',
         boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
         borderRadius: 4,
-        maxWidth: 700,
+        maxWidth: '100%',
         margin: '0 auto',
         overflow: 'hidden',
       }}

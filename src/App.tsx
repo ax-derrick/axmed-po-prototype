@@ -20,7 +20,7 @@ import './App.css';
 import BuyerEvaluation from './pages/BuyerEvaluation';
 import FinancePurchaseOrders from './pages/FinancePurchaseOrders';
 import POReview from './pages/POReview';
-import SupplierAwards from './pages/supplier/Awards';
+import SupplierMyBids from './pages/supplier/MyBids';
 import SupplierFulfillment from './pages/supplier/Fulfillment';
 
 const { Header, Sider, Content } = Layout;
@@ -76,7 +76,7 @@ const menuItems: MenuItem[] = [
       { key: '/suppliers/organizations', label: 'Organizations' },
       { key: '/suppliers/users', label: 'Users' },
       { key: '/suppliers/quotations', label: 'Quotations' },
-      { key: '/supplier/awards', label: 'Awards' },
+      { key: '/supplier/my-bids', label: 'My Bids' },
       { key: '/supplier/fulfillment', label: 'Fulfillment' },
     ],
   },
@@ -124,7 +124,7 @@ function getOpenKeys(pathname: string): string[] {
     '/suppliers/organizations': 'suppliers',
     '/suppliers/users': 'suppliers',
     '/suppliers/quotations': 'suppliers',
-    '/supplier/awards': 'suppliers',
+    '/supplier/my-bids': 'suppliers',
     '/supplier/fulfillment': 'suppliers',
     '/catalogue/skus': 'medicine-catalogue',
     '/catalogue/sku-categories': 'medicine-catalogue',
@@ -141,13 +141,20 @@ function getOpenKeys(pathname: string): string[] {
 // App Component
 // ---------------------------------------------------------------------------
 function App() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem('sidebarCollapsed') === 'true'
+  );
   const navigate = useNavigate();
   const location = useLocation();
 
   const [openKeys, setOpenKeys] = useState<string[]>(
     getOpenKeys(location.pathname)
   );
+
+  const handleCollapse = (value: boolean) => {
+    setCollapsed(value);
+    localStorage.setItem('sidebarCollapsed', String(value));
+  };
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
     navigate(key);
@@ -179,7 +186,7 @@ function App() {
           collapsedWidth={80}
           collapsible
           collapsed={collapsed}
-          onCollapse={setCollapsed}
+          onCollapse={handleCollapse}
           trigger={null}
           theme="light"
         >
@@ -196,7 +203,7 @@ function App() {
           {/* Collapse toggle */}
           <div
             className="sider-collapse-btn"
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={() => handleCollapse(!collapsed)}
           >
             {collapsed ? (
               <MenuUnfoldOutlined style={{ fontSize: 16 }} />
@@ -214,7 +221,7 @@ function App() {
             <Route path="/buyer-evaluation" element={<BuyerEvaluation />} />
             <Route path="/finance/purchase-orders" element={<FinancePurchaseOrders />} />
             <Route path="/finance/purchase-orders/:id" element={<POReview />} />
-            <Route path="/supplier/awards" element={<SupplierAwards />} />
+            <Route path="/supplier/my-bids" element={<SupplierMyBids />} />
             <Route path="/supplier/fulfillment" element={<SupplierFulfillment />} />
 
             {/* Placeholder routes for menu items that don't have pages yet */}

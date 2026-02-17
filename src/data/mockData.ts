@@ -56,6 +56,8 @@ export interface POLineItem {
   packSize: number;
   packPrice: number;
   amount: number;
+  status?: 'pending' | 'confirmed' | 'partially_confirmed' | 'rejected';
+  confirmedQuantity?: number;
 }
 
 export interface PurchaseOrder {
@@ -107,22 +109,74 @@ export interface TechnicalEnrichment {
   storageTemp: string;
   shelfLife: string;
   batchNumber: string;
+  // Carton details
+  grossWeight?: number | null;
+  cartonLength?: number | null;
+  cartonWidth?: number | null;
+  cartonHeight?: number | null;
+  packsPerCarton?: number | null;
+  numberOfCartons?: number | null;
+  // Storage
+  storageType?: string | null;
+  // Transportation
+  isStackable?: boolean | null;
+  maxStackingHeight?: number | null;
+  maxLoadBearing?: number | null;
+  isDangerous?: boolean | null;
+  imoClass?: string | null;
+  unNumber?: string;
+  properShippingName?: string;
+  packingGroup?: string | null;
+  isMarinePollutant?: boolean | null;
+}
+
+export interface ConfirmedAllocation {
+  poNumber: string;
+  location: string;
+  percentage: number;
+  allocatedQty: number;
 }
 
 export interface SupplierAward {
   id: string;
   skuName: string;
+  medicationName: string;
+  presentation: string;
   description: string;
   totalQuantity: number;
+  volumeUnit: string;
+  packSize: number;
+  packPriceLow: number;
+  packPriceMid: number;
+  packPriceHigh: number;
   unitPrice: number;
   currency: string;
+  submittedAt: string;
   status:
     | 'pending_confirmation'
     | 'confirmed'
     | 'partially_confirmed'
     | 'withdrawn';
   plannedShipments: PlannedShipment[];
+  confirmedQuantity?: number;
+  confirmationType?: 'full' | 'partial';
+  confirmedAllocations?: ConfirmedAllocation[];
   technicalEnrichment?: TechnicalEnrichment;
+}
+
+export interface SupplierBid {
+  id: string;
+  medicationName: string;
+  description: string;
+  totalVolume: number;
+  volumeUnit: string;
+  packSize: number;
+  packPriceLow: number;
+  packPriceMid: number;
+  packPriceHigh: number;
+  currency: string;
+  submittedAt: string;
+  status: 'submitted' | 'in_buyer_review' | 'awarded' | 'confirmed' | 'not_awarded' | 'withdrawn';
 }
 
 export interface FulfillmentPO {
@@ -961,6 +1015,7 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 100,
         packPrice: 3.2,
         amount: 24000.0,
+        status: 'pending',
       },
       {
         id: 'li-s001-2',
@@ -971,6 +1026,7 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 60,
         packPrice: 2.7,
         amount: 22500.0,
+        status: 'pending',
       },
       {
         id: 'li-s001-3',
@@ -981,6 +1037,7 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 6,
         packPrice: 1.08,
         amount: 5900.04,
+        status: 'pending',
       },
     ],
   },
@@ -1021,6 +1078,7 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 3,
         packPrice: 0.255,
         amount: 76500.0,
+        status: 'pending',
       },
     ],
   },
@@ -1061,6 +1119,7 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 1000,
         packPrice: 8.0,
         amount: 12000.0,
+        status: 'pending',
       },
       {
         id: 'li-s003-2',
@@ -1071,6 +1130,7 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 100,
         packPrice: 1.5,
         amount: 6750.0,
+        status: 'pending',
       },
     ],
   },
@@ -1114,6 +1174,8 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 100,
         packPrice: 3.2,
         amount: 32000.0,
+        status: 'confirmed',
+        confirmedQuantity: 1000000,
       },
       {
         id: 'li-cf001-2',
@@ -1124,6 +1186,8 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 100,
         packPrice: 2.8,
         amount: 5600.0,
+        status: 'confirmed',
+        confirmedQuantity: 200000,
       },
       {
         id: 'li-cf001-3',
@@ -1134,6 +1198,8 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 1,
         packPrice: 0.22,
         amount: 7199.94,
+        status: 'confirmed',
+        confirmedQuantity: 32727,
       },
     ],
   },
@@ -1177,6 +1243,8 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 10,
         packPrice: 0.65,
         amount: 19500.0,
+        status: 'confirmed',
+        confirmedQuantity: 300000,
       },
       {
         id: 'li-pc001-2',
@@ -1187,6 +1255,8 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 30,
         packPrice: 0.57,
         amount: 4750.0,
+        status: 'partially_confirmed',
+        confirmedQuantity: 150000,
       },
       {
         id: 'li-pc001-3',
@@ -1197,6 +1267,8 @@ export const purchaseOrders: PurchaseOrder[] = [
         packSize: 30,
         packPrice: 1.14,
         amount: 4149.98,
+        status: 'rejected',
+        confirmedQuantity: 0,
       },
     ],
   },
@@ -1210,10 +1282,18 @@ export const supplierAwards: SupplierAward[] = [
   {
     id: 'award-001',
     skuName: 'Artemether/Lumefantrine 20/120mg Tablets',
+    medicationName: 'Artemether/Lumefantrine',
+    presentation: 'Tablet, 20/120mg',
     description:
       '24 tabs/blister pack, antimalarial combination, WHO prequalified',
     totalQuantity: 2000000,
+    volumeUnit: 'tablets',
+    packSize: 24,
+    packPriceLow: 2.88,
+    packPriceMid: 2.64,
+    packPriceHigh: 2.40,
     unitPrice: 0.12,
+    submittedAt: '05-Oct-2025',
     currency: 'USD',
     status: 'confirmed',
     plannedShipments: [
@@ -1249,9 +1329,17 @@ export const supplierAwards: SupplierAward[] = [
   {
     id: 'award-002',
     skuName: 'Atenolol 50mg Tablets',
+    medicationName: 'Atenolol',
+    presentation: 'Tablet, 50mg',
     description: '28 tabs/blister pack, finished product, WHO prequalified',
     totalQuantity: 500000,
+    volumeUnit: 'tablets',
+    packSize: 28,
+    packPriceLow: 0.62,
+    packPriceMid: 0.56,
+    packPriceHigh: 0.50,
     unitPrice: 0.022,
+    submittedAt: '08-Oct-2025',
     currency: 'USD',
     status: 'confirmed',
     plannedShipments: [
@@ -1287,9 +1375,17 @@ export const supplierAwards: SupplierAward[] = [
   {
     id: 'award-003',
     skuName: 'Sulfadoxine/Pyrimethamine 500/25mg Tablets',
+    medicationName: 'Sulfadoxine/Pyrimethamine',
+    presentation: 'Tablet, 500/25mg',
     description: '3 tabs/blister pack, antimalarial, WHO prequalified',
     totalQuantity: 1500000,
+    volumeUnit: 'tablets',
+    packSize: 3,
+    packPriceLow: 0.26,
+    packPriceMid: 0.24,
+    packPriceHigh: 0.22,
     unitPrice: 0.085,
+    submittedAt: '12-Oct-2025',
     currency: 'USD',
     status: 'pending_confirmation',
     plannedShipments: [
@@ -1318,9 +1414,17 @@ export const supplierAwards: SupplierAward[] = [
   {
     id: 'award-004',
     skuName: 'Diazepam 5mg Tablets',
+    medicationName: 'Diazepam',
+    presentation: 'Tablet, 5mg',
     description: '10 tabs/blister pack, controlled substance, WHO prequalified',
     totalQuantity: 300000,
+    volumeUnit: 'tablets',
+    packSize: 10,
+    packPriceLow: 0.38,
+    packPriceMid: 0.34,
+    packPriceHigh: 0.30,
     unitPrice: 0.035,
+    submittedAt: '10-Oct-2025',
     currency: 'USD',
     status: 'partially_confirmed',
     plannedShipments: [
@@ -1356,9 +1460,17 @@ export const supplierAwards: SupplierAward[] = [
   {
     id: 'award-005',
     skuName: 'Nifedipine 20mg Retard Tablets',
+    medicationName: 'Nifedipine',
+    presentation: 'Tablet, 20mg (SR)',
     description: '28 tabs/blister pack, sustained release, GMP certified',
     totalQuantity: 400000,
+    volumeUnit: 'tablets',
+    packSize: 28,
+    packPriceLow: 1.42,
+    packPriceMid: 1.30,
+    packPriceHigh: 1.18,
     unitPrice: 0.048,
+    submittedAt: '15-Oct-2025',
     currency: 'USD',
     status: 'pending_confirmation',
     plannedShipments: [
@@ -1387,9 +1499,17 @@ export const supplierAwards: SupplierAward[] = [
   {
     id: 'award-006',
     skuName: 'Carbamazepine 200mg Tablets',
+    medicationName: 'Carbamazepine',
+    presentation: 'Tablet, 200mg',
     description: '100 tabs/bottle, antiepileptic, WHO prequalified',
     totalQuantity: 250000,
+    volumeUnit: 'tablets',
+    packSize: 100,
+    packPriceLow: 4.50,
+    packPriceMid: 4.10,
+    packPriceHigh: 3.80,
     unitPrice: 0.042,
+    submittedAt: '07-Oct-2025',
     currency: 'USD',
     status: 'confirmed',
     plannedShipments: [
@@ -1418,9 +1538,17 @@ export const supplierAwards: SupplierAward[] = [
   {
     id: 'award-007',
     skuName: 'Prednisone 5mg Tablets',
+    medicationName: 'Prednisone',
+    presentation: 'Tablet, 5mg',
     description: '100 tabs/bottle, corticosteroid, GMP certified',
     totalQuantity: 200000,
+    volumeUnit: 'tablets',
+    packSize: 100,
+    packPriceLow: 2.60,
+    packPriceMid: 2.40,
+    packPriceHigh: 2.20,
     unitPrice: 0.025,
+    submittedAt: '06-Oct-2025',
     currency: 'USD',
     status: 'withdrawn',
     plannedShipments: [
@@ -1443,9 +1571,17 @@ export const supplierAwards: SupplierAward[] = [
   {
     id: 'award-008',
     skuName: 'Metoclopramide 10mg Tablets',
+    medicationName: 'Metoclopramide',
+    presentation: 'Tablet, 10mg',
     description: '100 tabs/bottle, antiemetic, GMP certified',
     totalQuantity: 350000,
+    volumeUnit: 'tablets',
+    packSize: 100,
+    packPriceLow: 1.90,
+    packPriceMid: 1.72,
+    packPriceHigh: 1.58,
     unitPrice: 0.018,
+    submittedAt: '18-Oct-2025',
     currency: 'USD',
     status: 'pending_confirmation',
     plannedShipments: [
@@ -1682,3 +1818,195 @@ export function groupOrderItemsIntoDraftPOs(
 
   return Array.from(groupMap.values());
 }
+
+// -----------------------------------------------------------------------------
+// Supplier Bids (My Bids page)
+// -----------------------------------------------------------------------------
+
+export const supplierBids: SupplierBid[] = [
+  // Submitted (4)
+  {
+    id: 'bid-001',
+    medicationName: 'Metformin Hydrochloride',
+    description: 'Tablet, 500mg',
+    totalVolume: 1200000,
+    volumeUnit: 'tablets',
+    packSize: 100,
+    packPriceLow: 4.20,
+    packPriceMid: 3.80,
+    packPriceHigh: 3.50,
+    currency: 'USD',
+    submittedAt: '12-Jan-2026',
+    status: 'submitted',
+  },
+  {
+    id: 'bid-002',
+    medicationName: 'Amoxicillin',
+    description: 'Capsule, 500mg',
+    totalVolume: 800000,
+    volumeUnit: 'capsules',
+    packSize: 500,
+    packPriceLow: 18.00,
+    packPriceMid: 16.50,
+    packPriceHigh: 15.00,
+    currency: 'USD',
+    submittedAt: '14-Jan-2026',
+    status: 'submitted',
+  },
+  {
+    id: 'bid-003',
+    medicationName: 'Paracetamol',
+    description: 'Tablet, 500mg',
+    totalVolume: 2000000,
+    volumeUnit: 'tablets',
+    packSize: 1000,
+    packPriceLow: 3.10,
+    packPriceMid: 2.80,
+    packPriceHigh: 2.60,
+    currency: 'USD',
+    submittedAt: '15-Jan-2026',
+    status: 'submitted',
+  },
+  {
+    id: 'bid-004',
+    medicationName: 'Azithromycin',
+    description: 'Tablet, 250mg',
+    totalVolume: 500000,
+    volumeUnit: 'tablets',
+    packSize: 6,
+    packPriceLow: 2.40,
+    packPriceMid: 2.20,
+    packPriceHigh: 2.00,
+    currency: 'USD',
+    submittedAt: '16-Jan-2026',
+    status: 'submitted',
+  },
+  // In Buyer Review (6)
+  {
+    id: 'bid-005',
+    medicationName: 'Atorvastatin',
+    description: 'Tablet, 20mg',
+    totalVolume: 900000,
+    volumeUnit: 'tablets',
+    packSize: 30,
+    packPriceLow: 8.50,
+    packPriceMid: 7.80,
+    packPriceHigh: 7.20,
+    currency: 'USD',
+    submittedAt: '08-Jan-2026',
+    status: 'in_buyer_review',
+  },
+  {
+    id: 'bid-006',
+    medicationName: 'Amlodipine',
+    description: 'Tablet, 5mg',
+    totalVolume: 600000,
+    volumeUnit: 'tablets',
+    packSize: 30,
+    packPriceLow: 5.60,
+    packPriceMid: 5.10,
+    packPriceHigh: 4.80,
+    currency: 'USD',
+    submittedAt: '09-Jan-2026',
+    status: 'in_buyer_review',
+  },
+  {
+    id: 'bid-007',
+    medicationName: 'Omeprazole',
+    description: 'Capsule, 20mg',
+    totalVolume: 750000,
+    volumeUnit: 'capsules',
+    packSize: 28,
+    packPriceLow: 6.20,
+    packPriceMid: 5.70,
+    packPriceHigh: 5.30,
+    currency: 'USD',
+    submittedAt: '10-Jan-2026',
+    status: 'in_buyer_review',
+  },
+  {
+    id: 'bid-008',
+    medicationName: 'Ciprofloxacin',
+    description: 'Tablet, 500mg',
+    totalVolume: 400000,
+    volumeUnit: 'tablets',
+    packSize: 10,
+    packPriceLow: 3.90,
+    packPriceMid: 3.50,
+    packPriceHigh: 3.20,
+    currency: 'USD',
+    submittedAt: '11-Jan-2026',
+    status: 'in_buyer_review',
+  },
+  {
+    id: 'bid-009',
+    medicationName: 'Doxycycline',
+    description: 'Capsule, 100mg',
+    totalVolume: 300000,
+    volumeUnit: 'capsules',
+    packSize: 8,
+    packPriceLow: 4.80,
+    packPriceMid: 4.40,
+    packPriceHigh: 4.10,
+    currency: 'USD',
+    submittedAt: '12-Jan-2026',
+    status: 'in_buyer_review',
+  },
+  {
+    id: 'bid-010',
+    medicationName: 'Ibuprofen',
+    description: 'Tablet, 400mg',
+    totalVolume: 1500000,
+    volumeUnit: 'tablets',
+    packSize: 24,
+    packPriceLow: 2.90,
+    packPriceMid: 2.60,
+    packPriceHigh: 2.40,
+    currency: 'USD',
+    submittedAt: '13-Jan-2026',
+    status: 'in_buyer_review',
+  },
+  // Awarded (3)
+  {
+    id: 'bid-011',
+    medicationName: 'Adalimumab',
+    description: 'Injectable Solution, 40Mg/0.4Ml',
+    totalVolume: 600000,
+    volumeUnit: 'vials/ampoules/cartridges',
+    packSize: 600,
+    packPriceLow: 660,
+    packPriceMid: 600,
+    packPriceHigh: 600,
+    currency: 'USD',
+    submittedAt: '19-Oct-2025',
+    status: 'awarded',
+  },
+  {
+    id: 'bid-012',
+    medicationName: 'Alprostadil',
+    description: 'Injectable Solution, 0.5Ml / Ml',
+    totalVolume: 100,
+    volumeUnit: 'vials/ampoules/cartridges',
+    packSize: 5,
+    packPriceLow: 5,
+    packPriceMid: 5,
+    packPriceHigh: 5,
+    currency: 'USD',
+    submittedAt: '16-Oct-2025',
+    status: 'awarded',
+  },
+  {
+    id: 'bid-013',
+    medicationName: 'Acenocoumarol',
+    description: 'Tablet, 1Mg',
+    totalVolume: 100,
+    volumeUnit: 'tablets',
+    packSize: 100,
+    packPriceLow: 5,
+    packPriceMid: 5,
+    packPriceHigh: 5,
+    currency: 'USD',
+    submittedAt: '16-Oct-2025',
+    status: 'awarded',
+  },
+];
